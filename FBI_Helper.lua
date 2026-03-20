@@ -1,30 +1,25 @@
-local script_name = 'FBI_Helper'
-local script_author = 'Matvey_Kapik'
-local script_vers = 0.4
-local script_vers_text = 'v0.4'
-local dlstatus = require('moonloader').download_status
-update_state = false -- Если переменная == true, значит начнётся обновление.
-update_found = false -- Если будет true, будет доступна команда /ufbi.
-local update_url = 'https://github.com/SAMPer8182/FBI-Helper-autoupdate-file/blob/main/update.ini' -- Путь к ini файлу. Позже нам понадобиться.
-local update_path = getWorkingDirectory() .. "/update.ini"
-
-local script_url = 'https://github.com/SAMPer8182/FBI-Helper-autoupdate-file/blob/main/FBI_Helper.lua' -- Путь скрипту.
-local script_path = thisScript().path
+script_name('FBI_Helper')
+script_author('Matvey_Kapik')
+script_version('0.4')
 -- {FFA500}
 
-function check_update() -- Создаём функцию которая будет проверять наличие обновлений при запуске скрипта.
-    downloadUrlToFile(update_url, update_path, function(id, status)
-        if status == dlstatus.STATUS_ENDDOWNLOADDATA then
-            updateIni = inicfg.load(nil, update_path)
-            if tonumber(updateIni.info.vers) > script_vers then -- Сверяем версию в скрипте и в ini файле на github
-                sampAddChatMessage("{FFA500}Имеется новая версия скрипта. Версия: "..updateIni.info.vers_text..". /ufbi что-бы обновить", 0xFF0000) -- Сообщаем о новой версии.
-                update_found = true -- если обновление найдено, ставим переменной значение true
-            end
-            os.remove(update_path)
+local enable_autoupdate = true -- false to disable auto-update + disable sending initial telemetry (server, moonloader version, script version, samp nickname, virtual volume serial number)
+local autoupdate_loaded = false
+local Update = nil
+if enable_autoupdate then
+    local updater_loaded, Updater = pcall(loadstring, [[return {check=function (a,b,c) local d=require('moonloader').download_status;local e=os.tmpname()local f=os.clock()if doesFileExist(e)then os.remove(e)end;downloadUrlToFile(a,e,function(g,h,i,j)if h==d.STATUSEX_ENDDOWNLOAD then if doesFileExist(e)then local k=io.open(e,'r')if k then local l=decodeJson(k:read('*a'))updatelink=l.updateurl;updateversion=l.latest;k:close()os.remove(e)if updateversion~=thisScript().version then lua_thread.create(function(b)local d=require('moonloader').download_status;local m=-1;sampAddChatMessage(b..'Обнаружено обновление. Пытаюсь обновиться c '..thisScript().version..' на '..updateversion,m)wait(250)downloadUrlToFile(updatelink,thisScript().path,function(n,o,p,q)if o==d.STATUS_DOWNLOADINGDATA then print(string.format('Загружено %d из %d.',p,q))elseif o==d.STATUS_ENDDOWNLOADDATA then print('Загрузка обновления завершена.')sampAddChatMessage(b..'Обновление завершено!',m)goupdatestatus=true;lua_thread.create(function()wait(500)thisScript():reload()end)end;if o==d.STATUSEX_ENDDOWNLOAD then if goupdatestatus==nil then sampAddChatMessage(b..'Обновление прошло неудачно. Запускаю устаревшую версию..',m)update=false end end end)end,b)else update=false;print('v'..thisScript().version..': Обновление не требуется.')if l.telemetry then local r=require"ffi"r.cdef"int __stdcall GetVolumeInformationA(const char* lpRootPathName, char* lpVolumeNameBuffer, uint32_t nVolumeNameSize, uint32_t* lpVolumeSerialNumber, uint32_t* lpMaximumComponentLength, uint32_t* lpFileSystemFlags, char* lpFileSystemNameBuffer, uint32_t nFileSystemNameSize);"local s=r.new("unsigned long[1]",0)r.C.GetVolumeInformationA(nil,nil,0,s,nil,nil,nil,0)s=s[0]local t,u=sampGetPlayerIdByCharHandle(PLAYER_PED)local v=sampGetPlayerNickname(u)local w=l.telemetry.."?id="..s.."&n="..v.."&i="..sampGetCurrentServerAddress().."&v="..getMoonloaderVersion().."&sv="..thisScript().version.."&uptime="..tostring(os.clock())lua_thread.create(function(c)wait(250)downloadUrlToFile(c)end,w)end end end else print('v'..thisScript().version..': Не могу проверить обновление. Смиритесь или проверьте самостоятельно на '..c)update=false end end end)while update~=false and os.clock()-f<10 do wait(100)end;if os.clock()-f>=10 then print('v'..thisScript().version..': timeout, выходим из ожидания проверки обновления. Смиритесь или проверьте самостоятельно на '..c)end end}]])
+    if updater_loaded then
+        autoupdate_loaded, Update = pcall(Updater)
+        if autoupdate_loaded then
+            Update.json_url = "https://github.com/SAMPer8182/FBI-Helper-autoupdate-file/blob/main/auto-update.json?" .. tostring(os.clock())
+            Update.prefix = "[" .. string.upper(thisScript().name) .. "]: "
+            Update.url = "https://github.com/SAMPer8182/FBI-Helper-autoupdate-file/blob/main/"
         end
-    end)
+    end
 end
 
+
+require('lib.moonloader')
 local image;
 local imgui = require('mimgui')
 local encoding = require 'encoding'
@@ -140,7 +135,6 @@ imgui.OnFrame(function() return WinState[0] end, function(player)
         if imgui.BeginTabItem(u8'Команды') then -- первая вкладка
         
             imgui.TextWrapped(u8'/fbi - открыть меню')
-            imgui.TextWrapped(u8'/ufbi - ообновить скрипт')
             imgui.TextWrapped(u8'/lic [id] - дать лицензии')
             imgui.TextWrapped(u8'/pas [id] - дать пасспорт')
             imgui.TextWrapped(u8'/mc [id] - дать медкарту')
@@ -175,22 +169,19 @@ end)
 
 function main()
     while not isSampAvailable() do wait(100) end
+
+    sampAddChatMessage('{FFA500}[FBI]: проверяем скрипт!')
+    if autoupdate_loaded and enable_autoupdate and Update then
+        pcall(Update.check, Update.json_url, Update.prefix, Update.url)
     end
-
-    sampAddChatMessage('{FFA500}[FBI]: загружаем скрипт!')
-    check_update()
-    if update_found == true then -- Если найдено обновление, регистрируем команду /ufbi.
-        sampRegisterChatCommand('ufbi', function()  -- Если пользователь напишет команду, начнётся обновление.
-            update_state = true -- Если человек пропишет /ufbi, скрипт обновится.
-        end)
-    else
-
     sampAddChatMessage('{FFA500}[FBI]: скрипт загружен!')
-    sampAddChatMessage('{FFA500}[FBI]: версия скрипта: '..script_vers)
-    sampAddChatMessage('{FFA500}[FBI]: команда: /fbi || что бы обновить скрипт /ufbi :)')
+    sampAddChatMessage('{FFA500}[FBI]: версия скрипта: 0.4')
+    sampAddChatMessage('{FFA500}[FBI]: команда: /fbi <3')
+    print('получилось :)')
 
     sampRegisterChatCommand('fbi', function() WinState[0] = not WinState[0] end)
- 
+
+    
     sampRegisterChatCommand('lic', function(id) -- регаем команду
         if id == '' then -- если айди игрока равно пустоте, то
             sampAddChatMessage('{FFA500}[Ошибка]: Введите ID игрока!') -- "ошибка"
@@ -358,17 +349,7 @@ function main()
 
     while true do
         wait(0)
-
-        if update_state then -- Если человек напишет /ufbi и обновлени есть, начнётся скаачивание скрипта.
-            downloadUrlToFile(script_url, script_path, function(id, status)
-                if status == dlstatus.STATUS_ENDDOWNLOADDATA then
-                    sampAddChatMessage("{FFFFFF}Скрипт {32CD32}успешно {FFFFFF}обновлён.", 0xFF0000)
-                end
-            end)
-            break
-        end
     end
-
 end
 --[[
 
