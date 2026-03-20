@@ -1,7 +1,7 @@
 local script_name = 'FBI_Helper'
 local script_author = 'Matvey_Kapik'
-local script_vers = 0.4
-local script_vers_text = 'v0.4'
+local script_vers = 0.3
+local script_vers_text = 'v0.3'
 local dlstatus = require('moonloader').download_status
 update_state = false -- Если переменная == true, значит начнётся обновление.
 update_found = false -- Если будет true, будет доступна команда /ufbi.
