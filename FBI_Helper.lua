@@ -170,11 +170,7 @@ end)
 function main()
     while not isSampAvailable() do wait(100) end
 
-    sampAddChatMessage('{FFA500}[FBI]: проверяем скрипт!')
-    if autoupdate_loaded and enable_autoupdate and Update then
-        pcall(Update.check, Update.json_url, Update.prefix, Update.url)
-    end
-    sampAddChatMessage('{FFA500}[FBI]: скрипт загружен!')
+    sampAddChatMessage('{FFA500}[FBI]: скрипт запущен!')
     sampAddChatMessage('{FFA500}[FBI]: версия скрипта: 0.4')
     sampAddChatMessage('{FFA500}[FBI]: команда: /fbi <3')
     print('получилось :)')
